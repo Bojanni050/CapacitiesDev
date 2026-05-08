@@ -1,6 +1,6 @@
 import React from "react";
 import { OBJECT_TYPES } from "../lib/objectTypes";
-import { Plus, Search, Sparkles, Inbox } from "lucide-react";
+import { Plus, Search, Sparkles, Inbox, Activity } from "lucide-react";
 
 export default function Sidebar({
   activeType,
@@ -9,6 +9,7 @@ export default function Sidebar({
   total = 0,
   onNew,
   onSearch,
+  onPulse,
 }) {
   return (
     <aside
@@ -102,6 +103,27 @@ export default function Sidebar({
       </nav>
 
       {/* Footer */}
+      <div
+        className="px-3 pb-3 pt-2 border-t flex flex-col gap-1"
+        style={{ borderColor: "var(--border-soft)" }}
+      >
+        <button
+          onClick={onPulse}
+          data-testid="open-pulse-button"
+          className="side-item"
+          style={{ color: "var(--accent-ai-text)" }}
+        >
+          <Activity size={15} strokeWidth={1.7} />
+          <span>AI Pulse</span>
+          <span
+            className="count font-mono px-1.5 py-0.5 rounded"
+            style={{ background: "var(--surface-ai)", color: "var(--accent-ai-text)" }}
+          >
+            new
+          </span>
+        </button>
+      </div>
+
       <div
         className="px-6 py-4 border-t flex items-center gap-3"
         style={{ borderColor: "var(--border-soft)" }}

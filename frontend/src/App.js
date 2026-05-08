@@ -5,6 +5,7 @@ import Editor from "./components/Editor";
 import AIPanel from "./components/AIPanel";
 import ObjectList from "./components/ObjectList";
 import SearchDialog from "./components/SearchDialog";
+import PulseSheet from "./components/PulseSheet";
 import { Toaster } from "./components/ui/sonner";
 import { toast } from "sonner";
 import { api } from "./lib/api";
@@ -17,6 +18,7 @@ export default function App() {
   const [activeObject, setActiveObject] = useState(null);
   const [stats, setStats] = useState({ counts: {}, total: 0 });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [pulseOpen, setPulseOpen] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [aiRefreshKey, setAiRefreshKey] = useState(0);
   const enhanceTimerRef = useRef(null);
@@ -143,6 +145,7 @@ export default function App() {
         total={stats.total}
         onNew={() => handleNew()}
         onSearch={() => setSearchOpen(true)}
+        onPulse={() => setPulseOpen(true)}
       />
 
       {/* Object list column */}
@@ -203,6 +206,12 @@ export default function App() {
         onOpenChange={setSearchOpen}
         onSelect={setActiveId}
         onCreate={handleNew}
+      />
+
+      <PulseSheet
+        open={pulseOpen}
+        onOpenChange={setPulseOpen}
+        onOpenObject={setActiveId}
       />
 
       <Toaster position="bottom-right" />

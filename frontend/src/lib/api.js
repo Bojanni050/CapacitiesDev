@@ -14,4 +14,6 @@ export const api = {
   enhanceObject: (id) => client.post(`/objects/${id}/ai-enhance`).then((r) => r.data),
   relatedObjects: (id) => client.get(`/objects/${id}/related`).then((r) => r.data),
   stats: () => client.get("/stats").then((r) => r.data),
+  getPulse: () => client.get("/pulse").then((r) => r.data),
+  generatePulse: () => client.post("/pulse/generate").then((r) => r.data),
 };
