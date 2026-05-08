@@ -1,0 +1,95 @@
+{
+  "theme": "light",
+  "archetype": "1 (Organic & Earthy)",
+  "typography": {
+    "headings": "Manrope, sans-serif",
+    "body": "IBM Plex Sans, sans-serif",
+    "mono": "IBM Plex Mono, monospace",
+    "notes": "Chosen for a 'craft tool for thinking' aesthetic. Avoided standard tech sans-serifs (Inter/Roboto) to provide a grounded, physical feel."
+  },
+  "colors": {
+    "background_primary": "#FBFBF9",
+    "background_secondary": "#F2F1EC",
+    "surface_ai": "#F5F6F1",
+    "text_primary": "#2E2D2A",
+    "text_secondary": "#7A7871",
+    "border": "#E6E5DF",
+    "brand_primary": "#394239",
+    "brand_secondary": "#8A9482",
+    "accent_ai": "#B2C9A1",
+    "accent_ai_text": "#2C3E21",
+    "accent_terracotta": "#D27D66",
+    "tag_background": "#EDECE6",
+    "hover_bg": "#EBEAE4"
+  },
+  "spacing": {
+    "editor_container": "max-w-3xl mx-auto p-12 lg:p-20",
+    "sidebar_padding": "p-6",
+    "gap_standard": "gap-6",
+    "gap_large": "gap-12"
+  },
+  "layout": {
+    "type": "sidebar_and_editor",
+    "sidebar_width": "w-[280px]",
+    "ai_panel_width": "w-[320px]",
+    "grid_strategy": "Control Room Grid for dashboards, but single narrow column (max-w-3xl) for the note editor."
+  },
+  "components": {
+    "sidebar": {
+      "style": "flat",
+      "background": "bg-[#F2F1EC]",
+      "border": "border-r border-[#E6E5DF]",
+      "item_active": "bg-[#EBEAE4] text-[#2E2D2A] font-medium",
+      "item_inactive": "text-[#7A7871] hover:text-[#2E2D2A] hover:bg-[#EBEAE4]/50"
+    },
+    "editor": {
+      "title_size": "text-5xl sm:text-6xl tracking-tight font-light",
+      "body_size": "text-lg leading-relaxed text-[#2E2D2A]",
+      "metadata_block": "flex items-center gap-4 py-6 mb-8 border-b border-[#E6E5DF] text-sm font-mono text-[#7A7871]"
+    },
+    "ai_suggestions_panel": {
+      "style": "glassmorphism",
+      "background": "bg-[#FBFBF9]/80 backdrop-blur-xl",
+      "border": "border-l border-[#E6E5DF]",
+      "card_style": "p-4 rounded-xl border border-[#E6E5DF] bg-white hover:border-[#8A9482] transition-colors shadow-sm",
+      "ai_highlight": "relative overflow-hidden before:absolute before:inset-0 before:border before:border-[#B2C9A1]/50 before:rounded-xl"
+    },
+    "tags": {
+      "style": "inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#EDECE6] text-[#7A7871]",
+      "ai_generated": "bg-[#F5F6F1] text-[#2C3E21] border border-[#B2C9A1]/30"
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "strategy": "Use minimal, stroke-based icons. Maintain consistent stroke-width (1.5px)."
+  },
+  "media": {
+    "empty_state_illustration": {
+      "url": "https://images.unsplash.com/photo-1761888856976-c4bc8303f65f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwYWJzdHJhY3QlMjBzaGFwZXMlMjBjYWxtfGVufDB8fHx8MTc3ODI1MTc5Mnww&ixlib=rb-4.1.0&q=85",
+      "description": "Soft orange abstract shapes, use for 'No Notes Found' or onboarding empty states, clipped nicely in a rounded container with opacity."
+    },
+    "user_avatar": {
+      "url": "https://images.unsplash.com/photo-1762522926157-bcc04bf0b10a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3ODEzNjE4N3ww&ixlib=rb-4.1.0&q=85",
+      "description": "Avatar for the single user profile at the top/bottom of the sidebar."
+    }
+  },
+  "motion": {
+    "hover": "transition-all duration-200 ease-out",
+    "page_transition": "animate-in fade-in slide-in-from-bottom-4 duration-500",
+    "ai_loading": "animate-pulse bg-[#F5F6F1]"
+  },
+  "accessibility": {
+    "contrast": "All text must pass APCA contrast checks. Primary text on #FBFBF9 is high contrast. Muted text (#7A7871) remains readable.",
+    "focus": "focus-visible:ring-2 focus-visible:ring-[#8A9482] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FBFBF9] focus-visible:outline-none"
+  },
+  "instructions_to_main_agent": [
+    "Implement a 3-pane layout for desktop: Sidebar (Left, 280px), Main Editor (Center, flex-1), AI Suggestions (Right, 320px). On mobile, stack them or use drawers.",
+    "The sidebar must contain the specific object types: Notes, People, Tasks, Ideas, Books, Projects, Meetings, Daily logs. Include a generic icon for each.",
+    "In the main editor, use a massive, font-light heading for the note title (Manrope, text-5xl/6xl). Do NOT center the text in the editor; left-align everything in a max-w-3xl container.",
+    "For the AI tags and suggested notes, use the 'ai_generated' colors. AI-suggested related notes should appear in the right panel as small cards showing context and match percentage.",
+    "Use raw HTML/Tailwind for structural layout to maintain the 'craft' feel, while relying on Shadcn for interactive components (Dropdowns for object type changing, Dialogs for search).",
+    "Do NOT use a standard 'Card' component wrapper for the editor. The background should flow seamlessly. Cards should only be used in the right-side AI panel or for listing objects in a grid.",
+    "Add 'data-testid' to all interactive elements (e.g., sidebar links, new note button, AI tag chips).",
+    "Install and use 'lucide-react' for icons."
+  ]
+}
