@@ -8,7 +8,7 @@ import {
 } from "./ui/sheet";
 import { api } from "../lib/api";
 import { getTypeMeta } from "../lib/objectTypes";
-import { Sparkles, RefreshCw, Activity, Lightbulb, Check } from "lucide-react";
+import { Sparkles, RefreshCw, Activity, Lightbulb, Check, History, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
 function fmtRange(startIso, endIso) {
@@ -19,8 +19,10 @@ function fmtRange(startIso, endIso) {
   return `${s.toLocaleDateString(undefined, opts)} – ${e.toLocaleDateString(undefined, opts)}`;
 }
 
-export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
+export default function PulseSheet({ open, onOpenChange, onOpenObject, onPulseGenerated }) {
   const [pulse, setPulse] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [wovenIndex, setWovenIndex] = useState({}); // { [i]: idea_id }
@@ -74,9 +76,13 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
     let cancelled = false;
     setLoading(true);
     setWovenIndex({});
-    api
-      .getPulse()
-      .then((p) => !cancelled && setPulse(p))
+    setHistoryOpen(false);
+    Promise.all([api.getPulse(), api.listPulses()])
+      .then(([p, hist]) => {
+        if (cancelled) return;
+        setPulse(p);
+        setHistory(hist || []);
+      })
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -88,7 +94,9 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
     try {
       const fresh = await api.generatePulse();
       setPulse(fresh);
+      setHistory((prev) => [fresh, ...prev.filter((p) => p.id !== fresh.id)]);
       setWovenIndex({});
+      onPulseGenerated && onPulseGenerated();
     } finally {
       setGenerating(false);
     }
@@ -103,26 +111,55 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
         data-testid="pulse-sheet"
       >
         <SheetHeader className="px-6 pt-6 pb-4 text-left">
-          <div className="flex items-center gap-2 mb-1">
-            <Activity size={14} strokeWidth={1.7} style={{ color: "var(--accent-ai-text)" }} />
-            <span
-              className="text-[0.65rem] uppercase font-mono tracking-[0.18em]"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              AI Pulse · weekly
-            </span>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              {historyOpen ? (
+                <button
+                  onClick={() => setHistoryOpen(false)}
+                  data-testid="history-back-button"
+                  className="flex items-center gap-1 text-[0.65rem] uppercase font-mono tracking-[0.14em] hover:text-[var(--text-primary)] transition-colors"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <ChevronLeft size={12} strokeWidth={2} />
+                  Back
+                </button>
+              ) : (
+                <>
+                  <Activity size={14} strokeWidth={1.7} style={{ color: "var(--accent-ai-text)" }} />
+                  <span
+                    className="text-[0.65rem] uppercase font-mono tracking-[0.18em]"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    AI Pulse · weekly
+                  </span>
+                </>
+              )}
+            </div>
+            {!historyOpen && history.length > 0 && (
+              <button
+                onClick={() => setHistoryOpen(true)}
+                data-testid="open-history-button"
+                className="flex items-center gap-1 text-[0.65rem] uppercase font-mono tracking-[0.14em] hover:text-[var(--text-primary)] transition-colors"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <History size={11} strokeWidth={1.7} />
+                History · {history.length}
+              </button>
+            )}
           </div>
           <SheetTitle
             className="font-display text-3xl font-light tracking-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            3 verbanden die je miste
+            {historyOpen ? "Pulse history" : "3 verbanden die je miste"}
           </SheetTitle>
           <SheetDescription
             className="text-sm font-mono"
             style={{ color: "var(--text-secondary)" }}
           >
-            {pulse
+            {historyOpen
+              ? `${history.length} briefing${history.length === 1 ? "" : "s"} archived`
+              : pulse
               ? `${fmtRange(pulse.week_start, pulse.week_end)} · ${pulse.object_count} objects`
               : "Your weekly briefing across new objects"}
           </SheetDescription>
@@ -130,6 +167,64 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
 
         <div style={{ height: 1, background: "var(--border-soft)" }} />
 
+        {historyOpen ? (
+          <div className="px-6 py-5 reveal">
+            {history.length === 0 && (
+              <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                No pulses yet. Generate your first one from the main view.
+              </div>
+            )}
+            <div className="space-y-2">
+              {history.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setPulse(p);
+                    setHistoryOpen(false);
+                    setWovenIndex({});
+                  }}
+                  data-testid={`history-item-${p.id}`}
+                  className="w-full text-left p-4 rounded-xl border bg-white hover:border-[var(--brand-secondary)] transition-colors"
+                  style={{ borderColor: "var(--border-soft)" }}
+                >
+                  <div
+                    className="text-[0.65rem] uppercase font-mono tracking-[0.14em] mb-1"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {fmtRange(p.week_start, p.week_end)} · {p.object_count} objects
+                  </div>
+                  <div
+                    className="font-display text-base font-medium mb-1 line-clamp-1"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {p.connections[0]?.title || "Not enough objects"}
+                  </div>
+                  <div
+                    className="text-xs line-clamp-2"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {p.intro}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span
+                      className="text-[0.65rem] font-mono px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--surface-ai)", color: "var(--accent-ai-text)" }}
+                    >
+                      {p.connections.length} connections
+                    </span>
+                    <span
+                      className="text-[0.65rem] font-mono"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      · {new Date(p.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="px-6 py-5">
           <button
             onClick={handleGenerate}
@@ -293,6 +388,8 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
             </div>
           )}
         </div>
+        </>
+        )}
       </SheetContent>
     </Sheet>
   );

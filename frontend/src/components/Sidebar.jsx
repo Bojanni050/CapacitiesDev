@@ -1,6 +1,6 @@
 import React from "react";
 import { OBJECT_TYPES } from "../lib/objectTypes";
-import { Plus, Search, Sparkles, Inbox, Activity } from "lucide-react";
+import { Plus, Search, Sparkles, Inbox, Activity, Lightbulb } from "lucide-react";
 
 export default function Sidebar({
   activeType,
@@ -10,6 +10,8 @@ export default function Sidebar({
   onNew,
   onSearch,
   onPulse,
+  pulseNeedsNew = false,
+  wovenCount = 0,
 }) {
   return (
     <aside
@@ -83,7 +85,7 @@ export default function Sidebar({
       </div>
 
       {/* Types list */}
-      <nav className="px-3 flex flex-col gap-0.5 flex-1 overflow-y-auto">
+      <nav className="px-3 flex flex-col gap-0.5 overflow-y-auto">
         {OBJECT_TYPES.map((t) => {
           const Icon = t.icon;
           const active = activeType === t.key;
@@ -102,6 +104,30 @@ export default function Sidebar({
         })}
       </nav>
 
+      {/* Filters section */}
+      {wovenCount > 0 && (
+        <>
+          <div className="px-6 pt-4 pb-2">
+            <div className="font-mono text-[0.65rem] uppercase tracking-[0.14em]" style={{ color: "var(--text-secondary)" }}>
+              Filters
+            </div>
+          </div>
+          <div className="px-3 flex flex-col gap-0.5">
+            <button
+              onClick={() => onSelectType("filter:pulse-weave")}
+              data-testid="sidebar-filter-pulse-weave"
+              className={`side-item ${activeType === "filter:pulse-weave" ? "active" : ""}`}
+            >
+              <Lightbulb size={15} strokeWidth={1.6} style={{ color: "#C9A86A" }} />
+              <span>Pulse-woven</span>
+              <span className="count">{wovenCount}</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      <div className="flex-1" />
+
       {/* Footer */}
       <div
         className="px-3 pb-3 pt-2 border-t flex flex-col gap-1"
@@ -110,16 +136,23 @@ export default function Sidebar({
         <button
           onClick={onPulse}
           data-testid="open-pulse-button"
-          className="side-item"
+          className="side-item relative"
           style={{ color: "var(--accent-ai-text)" }}
         >
           <Activity size={15} strokeWidth={1.7} />
           <span>AI Pulse</span>
+          {pulseNeedsNew && (
+            <span
+              className="absolute right-9 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full"
+              style={{ background: "var(--accent-terracotta)" }}
+              data-testid="pulse-badge-dot"
+            />
+          )}
           <span
             className="count font-mono px-1.5 py-0.5 rounded"
             style={{ background: "var(--surface-ai)", color: "var(--accent-ai-text)" }}
           >
-            new
+            {pulseNeedsNew ? "new" : "open"}
           </span>
         </button>
       </div>

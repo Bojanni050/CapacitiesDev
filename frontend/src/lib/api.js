@@ -16,4 +16,6 @@ export const api = {
   stats: () => client.get("/stats").then((r) => r.data),
   getPulse: () => client.get("/pulse").then((r) => r.data),
   generatePulse: () => client.post("/pulse/generate").then((r) => r.data),
+  listPulses: () => client.get("/pulses").then((r) => r.data),
+  pulseStatus: () => client.get("/pulse/status").then((r) => r.data),
 };

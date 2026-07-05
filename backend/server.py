@@ -199,10 +199,18 @@ async def get_stats():
 
 
 @api_router.get("/objects", response_model=List[ObjectModel])
-async def list_objects(type: Optional[str] = None, search: Optional[str] = None, limit: int = 200):
+async def list_objects(
+    type: Optional[str] = None,
+    search: Optional[str] = None,
+    tag: Optional[str] = None,
+    limit: int = 200,
+):
+    limit = max(1, min(limit, 500))
     query: Dict[str, Any] = {}
     if type and type != "all":
         query["type"] = type
+    if tag:
+        query["tags"] = tag
     if search:
         rx = {"$regex": re.escape(search), "$options": "i"}
         query["$or"] = [
@@ -433,6 +441,34 @@ async def get_latest_pulse():
     if not doc:
         return None
     return PulseModel(**doc)
+
+
+@api_router.get("/pulses", response_model=List[PulseModel])
+async def list_pulses(limit: int = 20):
+    limit = max(1, min(limit, 100))
+    cursor = db.pulses.find({}, {"_id": 0}).sort("created_at", -1).limit(limit)
+    return await cursor.to_list(limit)
+
+
+@api_router.get("/pulse/status")
+async def get_pulse_status():
+    doc = await db.pulses.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    now = datetime.now(timezone.utc)
+    if not doc:
+        # If there are objects but no pulse yet, suggest one after >= 2 objects
+        obj_count = await db.objects.estimated_document_count()
+        return {
+            "last_created_at": None,
+            "days_since": None,
+            "needs_new": obj_count >= 2,
+        }
+    last = datetime.fromisoformat(doc["created_at"])
+    days_since = (now - last).total_seconds() / 86400
+    return {
+        "last_created_at": doc["created_at"],
+        "days_since": round(days_since, 2),
+        "needs_new": days_since >= 7,
+    }
 
 
 app.include_router(api_router)

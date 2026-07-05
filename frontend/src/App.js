@@ -14,21 +14,38 @@ import { getTypeMeta } from "./lib/objectTypes";
 export default function App() {
   const [activeType, setActiveType] = useState("all");
   const [objects, setObjects] = useState([]);
+  const [allObjects, setAllObjects] = useState([]); // full list for lookups (backlinks/mentions)
   const [activeId, setActiveId] = useState(null);
   const [activeObject, setActiveObject] = useState(null);
   const [stats, setStats] = useState({ counts: {}, total: 0 });
+  const [wovenCount, setWovenCount] = useState(0);
+  const [pulseNeedsNew, setPulseNeedsNew] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [pulseOpen, setPulseOpen] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [aiRefreshKey, setAiRefreshKey] = useState(0);
   const enhanceTimerRef = useRef(null);
+  const dailyCreatedRef = useRef(false);
 
   // Load list & stats
   const refreshList = useCallback(async (typeKey = activeType) => {
-    const params = typeKey && typeKey !== "all" ? { type: typeKey } : {};
-    const [list, st] = await Promise.all([api.listObjects(params), api.stats()]);
+    let params = {};
+    if (typeKey && typeKey.startsWith("filter:")) {
+      params = { tag: typeKey.slice("filter:".length) };
+    } else if (typeKey && typeKey !== "all") {
+      params = { type: typeKey };
+    }
+    const [list, st, full] = await Promise.all([
+      api.listObjects(params),
+      api.stats(),
+      // Only refetch full list on `all` change to keep it fresh but cheap
+      api.listObjects({ limit: 500 }),
+    ]);
     setObjects(list);
     setStats(st);
+    setAllObjects(full);
+    const woven = full.filter((o) => (o.tags || []).includes("pulse-weave")).length;
+    setWovenCount(woven);
     return list;
   }, [activeType]);
 
@@ -36,6 +53,11 @@ export default function App() {
     refreshList(activeType);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeType]);
+
+  // Pulse status on load
+  useEffect(() => {
+    api.pulseStatus().then((s) => setPulseNeedsNew(!!s?.needs_new)).catch(() => {});
+  }, []);
 
   // Load active object detail
   useEffect(() => {
@@ -64,13 +86,50 @@ export default function App() {
   }, [activeType]);
 
   async function handleNew(type, title = "") {
-    const t = type || (activeType !== "all" ? activeType : "note");
+    const t = type || (
+      activeType && !activeType.startsWith("filter:") && activeType !== "all"
+        ? activeType
+        : "note"
+    );
     const obj = await api.createObject({ type: t, title, body: "", tags: [] });
     toast(`New ${getTypeMeta(t).label.toLowerCase().replace(/s$/, "")} created`);
     setActiveId(obj.id);
     setActiveObject(obj);
     await refreshList();
+    return obj;
   }
+
+  // Daily note auto-create when switching to Daily type
+  useEffect(() => {
+    if (activeType !== "daily") {
+      dailyCreatedRef.current = false;
+      return;
+    }
+    if (dailyCreatedRef.current) return;
+    const today = new Date();
+    const todayLabel = today.toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    const todayIso = today.toISOString().slice(0, 10); // YYYY-MM-DD
+    const existing = objects.find(
+      (o) => o.type === "daily" && (o.title === todayLabel || o.title === todayIso || (o.title || "").startsWith(todayIso))
+    );
+    if (existing) {
+      setActiveId(existing.id);
+      dailyCreatedRef.current = true;
+      return;
+    }
+    // Only auto-create when we've actually loaded (avoid firing on empty pre-fetch)
+    if (objects.length === 0 && !dailyCreatedRef.current) {
+      // Guard: fetch to be sure before creating
+    }
+    dailyCreatedRef.current = true;
+    handleNew("daily", todayLabel).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeType, objects]);
 
   async function handleChange(updates) {
     if (!activeObject) return;
@@ -143,6 +202,8 @@ export default function App() {
         }}
         counts={stats.counts}
         total={stats.total}
+        wovenCount={wovenCount}
+        pulseNeedsNew={pulseNeedsNew}
         onNew={() => handleNew()}
         onSearch={() => setSearchOpen(true)}
         onPulse={() => setPulseOpen(true)}
@@ -160,7 +221,11 @@ export default function App() {
         <div className="px-5 pt-6 pb-3 flex items-center justify-between">
           <div>
             <div className="font-display text-lg font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-              {activeType === "all" ? "All objects" : getTypeMeta(activeType).plural}
+              {activeType === "all"
+                ? "All objects"
+                : activeType === "filter:pulse-weave"
+                ? "Pulse-woven ideas"
+                : getTypeMeta(activeType).plural}
             </div>
             <div className="text-xs mt-0.5 font-mono" style={{ color: "var(--text-secondary)" }}>
               {objects.length} {objects.length === 1 ? "object" : "objects"}
@@ -195,6 +260,8 @@ export default function App() {
           onDelete={handleDelete}
           onEnhance={handleEnhance}
           enhancing={enhancing}
+          allObjects={allObjects}
+          onOpenObject={setActiveId}
         />
       </div>
 
@@ -212,6 +279,10 @@ export default function App() {
         open={pulseOpen}
         onOpenChange={setPulseOpen}
         onOpenObject={setActiveId}
+        onPulseGenerated={() => {
+          setPulseNeedsNew(false);
+          refreshList();
+        }}
       />
 
       <Toaster position="bottom-right" />

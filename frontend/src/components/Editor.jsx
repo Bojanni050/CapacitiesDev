@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { OBJECT_TYPES, getTypeMeta } from "../lib/objectTypes";
 import {
   Trash2,
   Sparkles,
   ChevronDown,
   X,
+  Link2,
+  AtSign,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -23,7 +25,7 @@ function formatDate(iso) {
   });
 }
 
-export default function Editor({ object, onChange, onDelete, onEnhance, enhancing }) {
+export default function Editor({ object, onChange, onDelete, onEnhance, enhancing, allObjects = [], onOpenObject }) {
   const [title, setTitle] = useState(object?.title || "");
   const [body, setBody] = useState(object?.body || "");
   const [tagInput, setTagInput] = useState("");
@@ -58,6 +60,37 @@ export default function Editor({ object, onChange, onDelete, onEnhance, enhancin
     return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, body, tags, type]);
+
+  // Backlinks from metadata.source_ids (hook must be called before any early return)
+  const backlinks = useMemo(() => {
+    const ids = object?.metadata?.source_ids || [];
+    if (!ids.length || !allObjects.length) return [];
+    const byId = new Map(allObjects.map((o) => [o.id, o]));
+    return ids.map((id) => byId.get(id)).filter(Boolean);
+  }, [object?.metadata?.source_ids, allObjects]);
+
+  // @mentions parsed from body (formats: @[Full Title] or @word)
+  const mentions = useMemo(() => {
+    if (!body || !allObjects.length) return [];
+    const found = new Map();
+    const re = /@\[([^\]]+)\]|@([A-Za-z][\w-]{1,})/g;
+    let m;
+    while ((m = re.exec(body)) !== null) {
+      const raw = (m[1] || m[2] || "").trim();
+      if (!raw) continue;
+      const key = raw.toLowerCase();
+      if (found.has(key)) continue;
+      const exact = allObjects.find(
+        (o) => (o.title || "").toLowerCase() === key && o.id !== object?.id
+      );
+      const prefix = !exact && allObjects.find(
+        (o) => (o.title || "").toLowerCase().startsWith(key) && o.id !== object?.id
+      );
+      const match = exact || prefix;
+      if (match) found.set(key, match);
+    }
+    return Array.from(found.values());
+  }, [body, allObjects, object?.id]);
 
   if (!object) {
     return (
@@ -178,6 +211,40 @@ export default function Editor({ object, onChange, onDelete, onEnhance, enhancin
           )}
         </div>
 
+        {/* Backlinks (source_ids from pulse-weave etc.) */}
+        {backlinks.length > 0 && (
+          <div className="mb-6" data-testid="editor-backlinks">
+            <div
+              className="flex items-center gap-1.5 text-[0.65rem] uppercase font-mono tracking-[0.14em] mb-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <Link2 size={11} strokeWidth={1.7} />
+              Linked sources
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {backlinks.map((b) => {
+                const bm = getTypeMeta(b.type);
+                const BIcon = bm.icon;
+                return (
+                  <button
+                    key={b.id}
+                    onClick={() => onOpenObject && onOpenObject(b.id)}
+                    data-testid={`backlink-${b.id}`}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--hover-bg)]"
+                    style={{
+                      background: "var(--bg-secondary)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <BIcon size={11} strokeWidth={1.7} style={{ color: bm.color }} />
+                    <span className="truncate max-w-[200px]">{b.title || "Untitled"}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Title */}
         <input
           data-testid="editor-title"
@@ -219,10 +286,45 @@ export default function Editor({ object, onChange, onDelete, onEnhance, enhancin
         <textarea
           data-testid="editor-body"
           className="editor-body mt-8"
-          placeholder="Begin writing… your thoughts become objects, and Mindstack quietly connects them."
+          placeholder="Begin writing… your thoughts become objects, and Mindstack quietly connects them. Try @Name to link another object."
           value={body}
           onChange={(e) => setBody(e.target.value)}
         />
+
+        {/* Detected @mentions */}
+        {mentions.length > 0 && (
+          <div className="mt-4 pt-4" style={{ borderTop: "1px dashed var(--border-soft)" }} data-testid="editor-mentions">
+            <div
+              className="flex items-center gap-1.5 text-[0.65rem] uppercase font-mono tracking-[0.14em] mb-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <AtSign size={11} strokeWidth={1.7} />
+              Mentioned in body
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {mentions.map((m) => {
+                const mm = getTypeMeta(m.type);
+                const MIcon = mm.icon;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => onOpenObject && onOpenObject(m.id)}
+                    data-testid={`mention-${m.id}`}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--hover-bg)]"
+                    style={{
+                      background: "var(--surface-ai)",
+                      color: "var(--accent-ai-text)",
+                      border: "1px solid rgba(178, 201, 161, 0.35)",
+                    }}
+                  >
+                    <MIcon size={11} strokeWidth={1.7} style={{ color: mm.color }} />
+                    <span className="truncate max-w-[200px]">@{m.title || "Untitled"}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
