@@ -8,7 +8,8 @@ import {
 } from "./ui/sheet";
 import { api } from "../lib/api";
 import { getTypeMeta } from "../lib/objectTypes";
-import { Sparkles, RefreshCw, Activity } from "lucide-react";
+import { Sparkles, RefreshCw, Activity, Lightbulb, Check } from "lucide-react";
+import { toast } from "sonner";
 
 function fmtRange(startIso, endIso) {
   if (!startIso || !endIso) return "";
@@ -22,11 +23,57 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
   const [pulse, setPulse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [wovenIndex, setWovenIndex] = useState({}); // { [i]: idea_id }
+  const [weavingIndex, setWeavingIndex] = useState(null);
+
+  async function weaveIntoIdea(c, i) {
+    setWeavingIndex(i);
+    try {
+      const sourcesLine = c.objects
+        .map((o) => `- ${o.title || "Untitled"} (${o.type})`)
+        .join("\n");
+      const body =
+        `${c.insight}\n\n` +
+        `— Woven from AI Pulse on ${new Date().toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}\n\n` +
+        `Sources:\n${sourcesLine}`;
+
+      const idea = await api.createObject({
+        type: "idea",
+        title: c.title,
+        body,
+        tags: ["pulse-weave"],
+        metadata: {
+          source_ids: c.objects.map((o) => o.id),
+          woven_from: "ai-pulse",
+          woven_at: new Date().toISOString(),
+        },
+      });
+      setWovenIndex((prev) => ({ ...prev, [i]: idea.id }));
+      toast(`Idea created: ${idea.title}`, {
+        action: {
+          label: "Open",
+          onClick: () => {
+            onOpenObject(idea.id);
+            onOpenChange(false);
+          },
+        },
+      });
+    } catch (e) {
+      toast.error("Couldn't weave the idea.");
+    } finally {
+      setWeavingIndex(null);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
+    setWovenIndex({});
     api
       .getPulse()
       .then((p) => !cancelled && setPulse(p))
@@ -41,6 +88,7 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
     try {
       const fresh = await api.generatePulse();
       setPulse(fresh);
+      setWovenIndex({});
     } finally {
       setGenerating(false);
     }
@@ -188,6 +236,50 @@ export default function PulseSheet({ open, onOpenChange, onOpenObject }) {
                           </button>
                         );
                       })}
+                    </div>
+
+                    <div
+                      className="mt-3 pt-3 flex items-center justify-end"
+                      style={{ borderTop: "1px solid var(--border-soft)" }}
+                    >
+                      {wovenIndex[i] ? (
+                        <button
+                          onClick={() => {
+                            onOpenObject(wovenIndex[i]);
+                            onOpenChange(false);
+                          }}
+                          data-testid={`pulse-open-woven-${i}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors"
+                          style={{
+                            background: "var(--surface-ai)",
+                            color: "var(--accent-ai-text)",
+                            border: "1px solid rgba(178, 201, 161, 0.5)",
+                          }}
+                        >
+                          <Check size={11} strokeWidth={2} />
+                          Woven — open idea
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => weaveIntoIdea(c, i)}
+                          disabled={weavingIndex === i}
+                          data-testid={`pulse-weave-${i}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors hover:bg-[var(--hover-bg)]"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {weavingIndex === i ? (
+                            <>
+                              <RefreshCw size={11} strokeWidth={1.8} className="animate-spin" />
+                              Weaving…
+                            </>
+                          ) : (
+                            <>
+                              <Lightbulb size={11} strokeWidth={1.7} style={{ color: "#C9A86A" }} />
+                              Weave into idea
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
